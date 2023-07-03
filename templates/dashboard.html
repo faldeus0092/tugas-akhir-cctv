@@ -1,0 +1,48 @@
+{% extends "base.html" %} {% block title %}Gramedia{% endblock %} {% block
+    content %}
+<div class="row">
+    <div class="col-md-12 grid-margin">
+      <div class="d-flex justify-content-between flex-wrap">
+        <div class="d-flex align-items-end flex-wrap">
+          <div class="me-md-3 me-xl-5">
+            <h2>Aplikasi CCTV</h2>
+            <p class="mb-md-0">Selamat datang, admin</p>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+<div class="row">
+  <div class="col-md-6 grid-margin stretch-card text-center">
+    <div class="card">
+        <div class="card-body">
+          <img id="card-img" class="img-responsive" 
+          src="{{ url_for('static', filename='images/icon.png') }}" alt="logo"
+          />
+          <hr>
+          <h4>Teknologi Informasi</h4>
+          <p class="text-muted">
+            Gd. Perpustakaan Pusat ITS Lt. 6 - Kampus ITS, Keputih, Kec. Sukolilo, Surabaya, Jawa Timur 60117
+          </p>
+          <p class="text-muted">
+            email: gavinbagus123@gmail.com
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 grid-margin stretch-card text-center">
+      <div class="card">
+        <div class="card-body">
+          <img id="card-img" class="img-responsive" 
+          src="{{ url_for('static', filename='images/about.png') }}" alt="logo"
+          />
+          <hr>
+          <h4>About</h4>
+          <p class="text-muted">
+            Aplikasi CCTV ini digunakan untuk mendapatkan rekaman deteksi manusia pada CCTV di Departemen Teknologi Informasi ITS
+          </p>
+        </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

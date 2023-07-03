@@ -1,0 +1,47 @@
+{% extends "base.html" %} {% block title %}Gramedia{% endblock %} {% block
+content %}
+<div class="row">
+    <div class="col-md-12 grid-margin">
+      <div class="d-flex justify-content-between flex-wrap">
+        <div class="d-flex align-items-end flex-wrap">
+          <div class="me-md-3 me-xl-5">
+            <h2>Live Detection</h2>
+            <p class="mb-md-0">{{ name }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+            <p id="img-name" class="card-title">Live Detection</p>
+                <img class="img-responsive" id="video-feed" src="/static/footage/{{ img_path }}" alt="">
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.7.0.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+<script type="text/javascript">
+    console.log("asdasdasd");
+    let a = {{ img_path | tojson }};
+    $(document).ready(function(){
+        setInterval(function(){
+            $.ajax({
+                url: '/api/cctv/live',
+                type: 'get',
+                data: {
+                    "img_path": a
+                },
+                dataType: 'json',
+        
+                success: function (data) {
+                    $("#video-feed").attr('src', "/static/footage/"+data.img_path+"");
+                },
+    
+            });
+        }, 300);
+    });
+</script>
+{% endblock %}

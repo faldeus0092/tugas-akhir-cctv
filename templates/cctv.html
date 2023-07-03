@@ -1,0 +1,75 @@
+{% extends "base.html" %} {% block title %}Gramedia{% endblock %} {% block
+    content %}
+<div class="row">
+    <div class="col-md-12 grid-margin">
+      <div class="d-flex justify-content-between flex-wrap">
+        <div class="d-flex align-items-end flex-wrap">
+          <div class="me-md-3 me-xl-5">
+            <h2>Log Deteksi</h2>
+            <p class="mb-md-0">{{ name }}</p>
+          </div>
+        </div>
+        <!-- <div class="d-flex justify-content-between align-items-end flex-wrap">
+          <button type="button" class="btn btn-light bg-white btn-icon me-3 mt-2 mt-xl-0">
+            <i class="mdi mdi-plus text-muted"></i>
+          </button>
+          <button class="btn btn-primary mt-2 mt-xl-0">Generate report</button>
+        </div> -->
+      </div>
+    </div>
+</div>
+<div class="row">
+  <div class="col-md-12 grid-margin stretch-card">
+    <div class="card">
+        <div class="card-body">
+        <p class="card-title">Raw Footage</p>
+        <div class="table-responsive">
+            <table id = "footage-listing" class="table">
+            <thead>
+                <tr>
+                    <th>Recorded at</th>
+                    <th>Number Detected</th>
+                    <th>Image</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for footage in footages %}
+                    <tr class="data-row">
+                        <td>{{ footage[3] }}</td>
+                        <td>{{ footage[2] }}</td>
+                        <td>
+                            <a href="#" onclick="show_image(this)" id="show-image" data-original-image="{{ footage[1] }}" data-bs-toggle="modal" data-bs-target="#show-image-modal" class="btn btn-success btn-fw text-white" style="padding: 0.5rem 0.7rem"> Show Image </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+            </table>
+        </div>
+        </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="show-image-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Raw Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div>
+          <div class="container" style="
+          float: center;
+          display: flex;
+          justify-content: center;
+          margin: 2px;">
+            <div class="row">
+              <div class="cell">
+                <img src="" id="modal-original-img" alt="reading-img-alt" class="me-4 border img-responsive" style="width: inherit; height:inherit"/>
+              </div>
+            </div>
+          </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
