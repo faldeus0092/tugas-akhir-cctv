@@ -1,9 +1,11 @@
 import os
 import base64
 import psycopg2
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from flask import Flask, request, render_template, redirect
+from flask import Flask, request, render_template, redirect, Response
+from flask_mysqldb import MySQL
 from dotenv import load_dotenv
 from pathlib import Path
 import glob
@@ -21,7 +23,9 @@ CREATE_FOOTAGES_TABLE = (
     num_detections INTEGER, date TIMESTAMP, FOREIGN KEY(cctv_id) REFERENCES cctvs(id) ON DELETE CASCADE);"""
 )
 
-INSERT_CCTV_RETURN_ID = "INSERT INTO cctvs (name, cctv_number) VALUES (%s, %s) RETURNING id;"
+# INSERT_CCTV_RETURN_ID = "INSERT INTO cctvs (name, cctv_number) VALUES (%s, %s) RETURNING id;"
+INSERT_CCTV = "INSERT INTO cctvs (name, cctv_number) VALUES (%s, %s)"
+RETURN_LAST_ID = "SELECT LAST_INSERT_ID();"
 
 INSERT_FOOTAGE = (
     "INSERT INTO footages (cctv_id, image_path, num_detections, date) VALUES (%s, %s, %s, %s);"
@@ -49,8 +53,13 @@ GLOBAL_NUMBER_OF_DAYS = (
 
 load_dotenv()
 app = Flask(__name__)
-url = os.getenv('DATABASE_URL')
-connection = psycopg2.connect(url)
+app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')
+app.config['MYSQL_USER'] = os.getenv('MYSQL_USER')
+app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')
+app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
+
+mysql = MySQL(app)
+
 
 @app.get('/')
 def home():
@@ -58,60 +67,34 @@ def home():
 
 @app.route('/cctv/<int:cctv_id>')
 def cctv_footages(cctv_id):
-    with connection:
-        with connection.cursor() as cursor:
-            cursor.execute(GET_FOOTAGE_FROM_CCTV, (cctv_id,))
-            footages = cursor.fetchall()
-            cursor.execute(GET_CCTV_NAME, (cctv_id,))
-            name = cursor.fetchone()[0]
-    return render_template('cctv.html', footages=footages, name=name, page='cctv')
-
-@app.route('/video_feed/<int:cctv_id>')
-def video_feed(cctv_id):
-    with connection:
-            with connection.cursor() as cursor:
-                cursor.execute(GET_LATEST_FOOTAGE_FROM_CCTV, (cctv_id,))
-                img_path = cursor.fetchone()[0]
-                cursor.execute(GET_CCTV_NAME, (cctv_id,))
-                name = cursor.fetchone()[0]
-    return render_template('video_feed.html', img_path=img_path, cctv_id=cctv_id, name=name, page='cctv')
-
-
-@app.get('/api/cctv/live')
-def live():
-    if request.method == 'GET':
-        img_path = request.args.get('img_path')
-        img_dir = "/".join(img_path.split("/", 2)[:2])
-
-        #get latest image saved
-        list_of_files = glob.glob(f'static/footage/{img_dir}/*.jpeg') # * means all if need specific format then *.csv
-        latest_file = max(list_of_files, key=os.path.getctime)
-        
-        filename = os.path.basename(latest_file)
+    cursor = mysql.connection.cursor()
     
-    full_path = os.path.join(img_dir, filename).replace("\\","/")
-    # if request.method == 'GET':
-    #     cctv_id = request.args.get('cctv_id')
-    #     with connection:
-    #         with connection.cursor() as cursor:
-    #             cursor.execute(GET_LATEST_FOOTAGE_FROM_CCTV, (cctv_id,))
-    #             img_path = cursor.fetchone()
-    #     return {"image_path": img_path}    
-    return {"img_path": full_path}    
-    # return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    cursor.execute(GET_FOOTAGE_FROM_CCTV, (cctv_id,))
+    footages = cursor.fetchall()
+    cursor.execute(GET_CCTV_NAME, (cctv_id,))
+    name = cursor.fetchone()[0]
+
+    mysql.connection.commit()
+    cursor.close()
+    return render_template('cctv.html', footages=footages, name=name, page='log')
 
 @app.post('/api/cctv')
 def create_cctv():
     data = request.get_json()
     name = data["name"]
     cctv_number = data["cctv_number"]
-    with connection:
-        with connection.cursor() as cursor:
-            cursor.execute(CREATE_CCTVS_TABLE)
-            cursor.execute(INSERT_CCTV_RETURN_ID, (name, cctv_number)) #pass a tuple
-            cctv_id = cursor.fetchone()[0]
+    # mysql
+    cursor = mysql.connection.cursor()
+    cursor.execute(CREATE_CCTVS_TABLE)
+    cursor.execute(INSERT_CCTV, (name, cctv_number)) #pass a tuple
+    cursor.execute(RETURN_LAST_ID)
+    cctv_id = cursor.fetchone()[0]
+    mysql.connection.commit()
+    cursor.close()
+
     return {"id": cctv_id, "message": f"CCTV {name} dengan no cctv {cctv_number} telah didaftarkan"}
 
+# uncomment after
 @app.post("/api/footage")
 def store_footage():
     data = request.get_json()
@@ -120,7 +103,7 @@ def store_footage():
     date = datetime.now(tz=ZoneInfo("Asia/Jakarta"))
 
     # determine filename
-    filename = f"{date.strftime('%d-%m-%Y_%H%M%S%f')[:-3]}.jpeg"
+    filename = f"{date.strftime('%Y-%m-%d_%H%M%S%f')[:-3]}.jpeg"
     date_folder = str(filename.split("_")[0])
     
     # create folder for saving
@@ -137,12 +120,56 @@ def store_footage():
     with img_file as f:
         f.write(decoded_image)
         f.close()
-        
-    with connection:
-        with connection.cursor() as cursor:
-            cursor.execute(GET_CCTV_ID, (cctv_number,))
-            cctv_id = cursor.fetchone()[0]
-            cursor.execute(CREATE_FOOTAGES_TABLE)
-            cursor.execute(INSERT_FOOTAGE, (cctv_id, image_path, num_detections, date))
+
+    cursor = mysql.connection.cursor()
+    cursor.execute(GET_CCTV_ID, (cctv_number,))
+    cctv_id = cursor.fetchone()[0]
+    cursor.execute(CREATE_FOOTAGES_TABLE)
+    cursor.execute(INSERT_FOOTAGE, (cctv_id, image_path, num_detections, date))
+    mysql.connection.commit()
+    cursor.close()
 
     return {"message": f"Footage for cctv number {cctv_number} added. date: {date}, Image path: {image_path}, detected person: {num_detections}"}
+
+def stream(img_path):
+    while True:
+        time.sleep(0.3)
+        image = get_latest_images(img_path)
+        im = open('static/footage/' + image, 'rb').read()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + im + b'\r\n')
+
+def get_latest_images(img_path):
+    img_dir = "/".join(img_path.split("/", 2)[:2])
+
+    #get latest image saved
+    list_of_files = glob.glob(f'static/footage/{img_dir}/*.jpeg') # * means all if need specific format then *.csv
+    latest_file = max(list_of_files, key=os.path.getctime)
+    
+    filename = os.path.basename(latest_file)
+    
+    full_path = os.path.join(img_dir, filename).replace("\\","/")
+    return full_path
+
+@app.route('/slideshow/<int:cctv_id>')
+def slideshow(cctv_id):
+    cursor = mysql.connection.cursor()
+    
+    cursor.execute(GET_LATEST_FOOTAGE_FROM_CCTV, (cctv_id,))
+    img_path = cursor.fetchone()[0]
+    
+    mysql.connection.commit()
+    cursor.close()
+    return Response(stream(img_path),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/video_feed/<int:cctv_id>')
+def video_feed(cctv_id):
+    cursor = mysql.connection.cursor()
+
+    cursor.execute(GET_CCTV_NAME, (cctv_id,))
+    name = cursor.fetchone()[0]
+    
+    mysql.connection.commit()
+    cursor.close()
+    return render_template('video_feed.html', cctv_id=cctv_id, name=name, page='live_detection')
