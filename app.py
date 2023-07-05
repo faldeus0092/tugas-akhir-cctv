@@ -4,8 +4,8 @@ import psycopg2
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from flask import Flask, request, render_template, redirect, Response
-from flask_mysqldb import MySQL
+from flask import Flask, request, render_template, Response
+# from flask_mysqldb import MySQL
 from dotenv import load_dotenv
 from pathlib import Path
 import glob
@@ -23,9 +23,9 @@ CREATE_FOOTAGES_TABLE = (
     num_detections INTEGER, date TIMESTAMP, FOREIGN KEY(cctv_id) REFERENCES cctvs(id) ON DELETE CASCADE);"""
 )
 
-# INSERT_CCTV_RETURN_ID = "INSERT INTO cctvs (name, cctv_number) VALUES (%s, %s) RETURNING id;"
-INSERT_CCTV = "INSERT INTO cctvs (name, cctv_number) VALUES (%s, %s)"
-RETURN_LAST_ID = "SELECT LAST_INSERT_ID();"
+INSERT_CCTV_RETURN_ID = "INSERT INTO cctvs (name, cctv_number) VALUES (%s, %s) RETURNING id;"
+# INSERT_CCTV = "INSERT INTO cctvs (name, cctv_number) VALUES (%s, %s)"
+# RETURN_LAST_ID = "SELECT LAST_INSERT_ID();"
 
 INSERT_FOOTAGE = (
     "INSERT INTO footages (cctv_id, image_path, num_detections, date) VALUES (%s, %s, %s, %s);"
@@ -47,18 +47,22 @@ GET_LATEST_FOOTAGE_FROM_CCTV = (
     "SELECT image_path FROM footages WHERE cctv_id = (%s) ORDER BY image_path DESC LIMIT 1;"
 )
 
-GLOBAL_NUMBER_OF_DAYS = (
-    """SELECT COUNT(DISTINCT DATE(date)) AS days FROM footages"""
-)
+# GLOBAL_NUMBER_OF_DAYS = (
+#     """SELECT COUNT(DISTINCT DATE(date)) AS days FROM footages"""
+# )
 
 load_dotenv()
 app = Flask(__name__)
-app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')
-app.config['MYSQL_USER'] = os.getenv('MYSQL_USER')
-app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')
-app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
+url = os.getenv('DATABASE_URL')
+connection = psycopg2.connect(url)
 
-mysql = MySQL(app)
+# mysql
+# app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')
+# app.config['MYSQL_USER'] = os.getenv('MYSQL_USER')
+# app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')
+# app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
+
+# mysql = MySQL(app)
 
 
 @app.get('/')
@@ -67,15 +71,23 @@ def home():
 
 @app.route('/cctv/<int:cctv_id>')
 def cctv_footages(cctv_id):
-    cursor = mysql.connection.cursor()
+    # postgres
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(GET_FOOTAGE_FROM_CCTV, (cctv_id,))
+            footages = cursor.fetchall()
+            cursor.execute(GET_CCTV_NAME, (cctv_id,))
+            name = cursor.fetchone()[0]
+    # mysql
+    # cursor = mysql.connection.cursor()
     
-    cursor.execute(GET_FOOTAGE_FROM_CCTV, (cctv_id,))
-    footages = cursor.fetchall()
-    cursor.execute(GET_CCTV_NAME, (cctv_id,))
-    name = cursor.fetchone()[0]
+    # cursor.execute(GET_FOOTAGE_FROM_CCTV, (cctv_id,))
+    # footages = cursor.fetchall()
+    # cursor.execute(GET_CCTV_NAME, (cctv_id,))
+    # name = cursor.fetchone()[0]
 
-    mysql.connection.commit()
-    cursor.close()
+    # mysql.connection.commit()
+    # cursor.close()
     return render_template('cctv.html', footages=footages, name=name, page='log')
 
 @app.post('/api/cctv')
@@ -83,18 +95,24 @@ def create_cctv():
     data = request.get_json()
     name = data["name"]
     cctv_number = data["cctv_number"]
+
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(CREATE_CCTVS_TABLE)
+            cursor.execute(INSERT_CCTV_RETURN_ID, (name, cctv_number)) #pass a tuple
+            cctv_id = cursor.fetchone()[0]
+
     # mysql
-    cursor = mysql.connection.cursor()
-    cursor.execute(CREATE_CCTVS_TABLE)
-    cursor.execute(INSERT_CCTV, (name, cctv_number)) #pass a tuple
-    cursor.execute(RETURN_LAST_ID)
-    cctv_id = cursor.fetchone()[0]
-    mysql.connection.commit()
-    cursor.close()
+    # cursor = mysql.connection.cursor()
+    # cursor.execute(CREATE_CCTVS_TABLE)
+    # cursor.execute(INSERT_CCTV, (name, cctv_number)) #pass a tuple
+    # cursor.execute(RETURN_LAST_ID)
+    # cctv_id = cursor.fetchone()[0]
+    # mysql.connection.commit()
+    # cursor.close()
 
     return {"id": cctv_id, "message": f"CCTV {name} dengan no cctv {cctv_number} telah didaftarkan"}
 
-# uncomment after
 @app.post("/api/footage")
 def store_footage():
     data = request.get_json()
@@ -121,13 +139,22 @@ def store_footage():
         f.write(decoded_image)
         f.close()
 
-    cursor = mysql.connection.cursor()
-    cursor.execute(GET_CCTV_ID, (cctv_number,))
-    cctv_id = cursor.fetchone()[0]
-    cursor.execute(CREATE_FOOTAGES_TABLE)
-    cursor.execute(INSERT_FOOTAGE, (cctv_id, image_path, num_detections, date))
-    mysql.connection.commit()
-    cursor.close()
+    # postgres
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(GET_CCTV_ID, (cctv_number,))
+            cctv_id = cursor.fetchone()[0]
+            cursor.execute(CREATE_FOOTAGES_TABLE)
+            cursor.execute(INSERT_FOOTAGE, (cctv_id, image_path, num_detections, date))
+
+    # mysql
+    # cursor = mysql.connection.cursor()
+    # cursor.execute(GET_CCTV_ID, (cctv_number,))
+    # cctv_id = cursor.fetchone()[0]
+    # cursor.execute(CREATE_FOOTAGES_TABLE)
+    # cursor.execute(INSERT_FOOTAGE, (cctv_id, image_path, num_detections, date))
+    # mysql.connection.commit()
+    # cursor.close()
 
     return {"message": f"Footage for cctv number {cctv_number} added. date: {date}, Image path: {image_path}, detected person: {num_detections}"}
 
@@ -153,23 +180,37 @@ def get_latest_images(img_path):
 
 @app.route('/slideshow/<int:cctv_id>')
 def slideshow(cctv_id):
-    cursor = mysql.connection.cursor()
+    # psql
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(GET_LATEST_FOOTAGE_FROM_CCTV, (cctv_id,))
+            img_path = cursor.fetchone()[0]
+
+    # mysql
+    # cursor = mysql.connection.cursor()
     
-    cursor.execute(GET_LATEST_FOOTAGE_FROM_CCTV, (cctv_id,))
-    img_path = cursor.fetchone()[0]
+    # cursor.execute(GET_LATEST_FOOTAGE_FROM_CCTV, (cctv_id,))
+    # img_path = cursor.fetchone()[0]
     
-    mysql.connection.commit()
-    cursor.close()
+    # mysql.connection.commit()
+    # cursor.close()
     return Response(stream(img_path),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/video_feed/<int:cctv_id>')
 def video_feed(cctv_id):
-    cursor = mysql.connection.cursor()
-
-    cursor.execute(GET_CCTV_NAME, (cctv_id,))
-    name = cursor.fetchone()[0]
+    # psql
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(GET_CCTV_NAME, (cctv_id,))
+            name = cursor.fetchone()[0]
     
-    mysql.connection.commit()
-    cursor.close()
+    # mysql
+    # cursor = mysql.connection.cursor()
+
+    # cursor.execute(GET_CCTV_NAME, (cctv_id,))
+    # name = cursor.fetchone()[0]
+    
+    # mysql.connection.commit()
+    # cursor.close()
     return render_template('video_feed.html', cctv_id=cctv_id, name=name, page='live_detection')
