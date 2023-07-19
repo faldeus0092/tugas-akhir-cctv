@@ -64,19 +64,22 @@
                 <span class="menu-title">Dashboard</span>
               </a>
             </li>
-            <li class="nav-item {% if page == 'live_detection' %}active{% endif %} {% if page == 'log' %}active{% endif %}">
-              <a class="nav-link" data-bs-toggle="collapse" href="#ui-basic" aria-expanded="false" aria-controls="ui-basic">
+            {% for cctv in cctv_list %}
+            <li class="nav-item {% if page == 'live_detection_%s' % cctv[0] %}active{% endif %} {% if page == 'log_%s' % cctv[0] %}active{% endif %}">
+              <a class="nav-link" data-bs-toggle="collapse" href="#ui-basic-{{ cctv[0] }}" aria-expanded="false" aria-controls="ui-basic">
                 <i class="mdi mdi-circle-outline menu-icon"></i>
-                <span class="menu-title">LAB KCKS</span>
+                <span class="menu-title">{{ cctv[2] }}</span>
                 <i class="menu-arrow"></i>
               </a>
-              <div class="collapse show" id="ui-basic">
+              <div class="collapse {% if page == 'live_detection_%s' % cctv[0] %}show {% elif page == 'log_%s' % cctv[0] %}show {% else %}hide{% endif %}" id="ui-basic-{{ cctv[0] }}">
                 <ul class="nav flex-column sub-menu">
-                  <li class="nav-item"> <a class="nav-link" href="{{ url_for('video_feed', cctv_id=1) }}">Live Detection</a></li>
-                  <li class="nav-item"> <a class="nav-link" href="{{ url_for('cctv_footages', cctv_id=1) }}">Log Deteksi</a></li>
+                  <li class="nav-item"> <a class="nav-link" href="{{ url_for('video_feed', cctv_id=cctv[0]) }}">Live Detection</a></li>
+                  <li class="nav-item"> <a class="nav-link" href="{{ url_for('cctv_footages', cctv_id=cctv[0]) }}">Log Deteksi</a></li>
                 </ul>
               </div>
             </li>
+            {% endfor %}
+            
           </ul>
         </nav>
         <!-- partial -->

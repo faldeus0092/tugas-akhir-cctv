@@ -39,8 +39,16 @@ GET_CCTV_NAME = (
     "SELECT name FROM cctvs WHERE id = (%s) LIMIT 1;"
 )
 
+GET_ALL_CCTVS = (
+    "SELECT * FROM cctvs;"
+)
+
 GET_FOOTAGE_FROM_CCTV = (
     "SELECT * FROM footages WHERE cctv_id = (%s) ORDER BY image_path DESC;"
+)
+
+GET_FOOTAGE_FROM_CCTV_LIMIT = (
+    "SELECT * FROM footages WHERE cctv_id = (%s) ORDER BY image_path DESC LIMIT 1000;"
 )
 
 GET_LATEST_FOOTAGE_FROM_CCTV = (
@@ -64,17 +72,25 @@ connection = psycopg2.connect(url)
 
 # mysql = MySQL(app)
 
+def get_all_cctv():
+    with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(GET_ALL_CCTVS)
+                cctv_list = cursor.fetchall()
+    return cctv_list
 
 @app.get('/')
 def home():
-    return render_template('dashboard.html', page='home')
+    cctv_list = get_all_cctv()
+    return render_template('dashboard.html', page='home', cctv_list=cctv_list)
 
 @app.route('/cctv/<int:cctv_id>')
 def cctv_footages(cctv_id):
+    cctv_list = get_all_cctv()
     # postgres
     with connection:
         with connection.cursor() as cursor:
-            cursor.execute(GET_FOOTAGE_FROM_CCTV, (cctv_id,))
+            cursor.execute(GET_FOOTAGE_FROM_CCTV_LIMIT, (cctv_id,))
             footages = cursor.fetchall()
             cursor.execute(GET_CCTV_NAME, (cctv_id,))
             name = cursor.fetchone()[0]
@@ -88,7 +104,8 @@ def cctv_footages(cctv_id):
 
     # mysql.connection.commit()
     # cursor.close()
-    return render_template('cctv.html', footages=footages, name=name, page='log')
+    page_name = "log_%s" % cctv_id
+    return render_template('cctv.html', footages=footages, name=name, page=page_name, cctv_list = cctv_list)
 
 @app.post('/api/cctv')
 def create_cctv():
@@ -199,6 +216,7 @@ def slideshow(cctv_id):
 
 @app.route('/video_feed/<int:cctv_id>')
 def video_feed(cctv_id):
+    cctv_list = get_all_cctv()
     # psql
     with connection:
         with connection.cursor() as cursor:
@@ -213,4 +231,5 @@ def video_feed(cctv_id):
     
     # mysql.connection.commit()
     # cursor.close()
-    return render_template('video_feed.html', cctv_id=cctv_id, name=name, page='live_detection')
+    page_name = "live_detection_%s" % cctv_id
+    return render_template('video_feed.html', cctv_id=cctv_id, name=name, page=page_name, cctv_list=cctv_list)
