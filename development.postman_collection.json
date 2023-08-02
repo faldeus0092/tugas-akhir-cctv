@@ -1,0 +1,42 @@
+{
+	"info": {
+		"_postman_id": "005317d1-dcfe-442a-aa5d-a787be3272cc",
+		"name": "development",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "15174748"
+	},
+	"item": [
+		{
+			"name": "create cctv",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"Lab KCKS Belakang\",\r\n    \"cctv_number\": 11\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://10.15.41.232:5000/api/cctv",
+					"protocol": "http",
+					"host": [
+						"10",
+						"15",
+						"41",
+						"232"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"cctv"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
